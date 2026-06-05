@@ -18,6 +18,7 @@ final class AppSettingsStore {
         static let baseURL = "baseURL"
         static let apiKey = "apiKey"
         static let session = "recentSession"
+        static let useStreaming = "useStreaming"
     }
 
     /// 사용자가 입력한 base URL 문자열(정규화 전 원문 보관 — 편집 편의).
@@ -30,9 +31,16 @@ final class AppSettingsStore {
         didSet { defaults.set(apiKey, forKey: Key.apiKey) }
     }
 
+    /// 스트리밍 응답 사용 여부(기본 true=스트림 경로 Phase 7 / false=비스트림 경로 Phase 6).
+    var useStreaming: Bool {
+        didSet { defaults.set(useStreaming, forKey: Key.useStreaming) }
+    }
+
     init() {
         baseURLString = defaults.string(forKey: Key.baseURL) ?? ""
         apiKey = defaults.string(forKey: Key.apiKey) ?? ""
+        // 키가 없으면 기본 true(object(forKey:) 로 미설정과 false 를 구분).
+        useStreaming = (defaults.object(forKey: Key.useStreaming) as? Bool) ?? true
     }
 
     /// 정규화된 base URL(없으면 nil → 설정 미완료로 간주).

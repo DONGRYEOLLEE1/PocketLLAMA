@@ -10,7 +10,9 @@
 #
 # 환경변수: HOST(기본 127.0.0.1) · PORT(8080) · CTX(65536) · KVQ(q8_0; f16이면 끔)
 #           THINK(off/on/auto) · API_KEY(설정 시 인증 켬 — 헤더 형식은 계획서 §4.5 실측)
-# 이식성: 다른 머신은 첫 인자(로컬 경로/HF) 또는 LLAMA_CACHE 로 모델 위치를 바꾼다.
+#           MODEL(첫 인자 대용 — 로컬 경로/HF; 인자 미지정 시 폴백)
+# 이식성: 다른 머신은 첫 인자/MODEL(로컬 경로/HF) 또는 LLAMA_CACHE 로 모델 위치를 바꾼다.
+#   예) MODEL=/path/to/model.gguf ./server/serve.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,7 +28,7 @@ APIKEY="${API_KEY:-}"
 LOCAL_DEFAULT="$ROOT/models/Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf"
 DEFAULT_HF="unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q5_K_XL"
 
-ARG="${1:-}"
+ARG="${1:-${MODEL:-}}"
 if [[ -n "$ARG" && -f "$ARG" ]]; then SRC=(-m "$ARG");           echo ">> 로컬 모델: $ARG"
 elif [[ -n "$ARG" ]];            then SRC=(-hf "$ARG");          echo ">> HF 모델: $ARG"
 elif [[ -f "$LOCAL_DEFAULT" ]];  then SRC=(-m "$LOCAL_DEFAULT"); echo ">> 기본(로컬): $(basename "$LOCAL_DEFAULT")"

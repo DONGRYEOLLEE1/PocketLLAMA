@@ -89,13 +89,14 @@ struct AnthropicChatClient: LLMChatClient {
         }
     }
 
-    func send(messages: [ChatTurn], system: String?, maxTokens: Int) async throws -> String {
+    func send(messages: [ChatTurn], system: String?, maxTokens: Int) async throws -> ChatCompletion {
         do {
             let body = try encodeBody(messages: messages, system: system, maxTokens: maxTokens, stream: nil)
             let (data, resp) = try await session.data(for: makeRequest("v1/messages", body: body))
             try Self.ensureOK(resp, data)
             do {
-                return try JSONDecoder().decode(MessagesResponse.self, from: data).text
+                let decoded = try JSONDecoder().decode(MessagesResponse.self, from: data)
+                return ChatCompletion(text: decoded.text, truncated: decoded.wasTruncated)
             } catch {
                 throw ClientError.decoding(String(describing: error))
             }
@@ -106,7 +107,7 @@ struct AnthropicChatClient: LLMChatClient {
         }
     }
 
-    func stream(messages: [ChatTurn], system: String?, maxTokens: Int) -> AsyncThrowingStream<String, Error> {
+    func stream(messages: [ChatTurn], system: String?, maxTokens: Int) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -115,6 +116,7 @@ struct AnthropicChatClient: LLMChatClient {
                     try Self.ensureOK(resp, nil)
 
                     let decoder = SSEDecoder()
+                    var truncated = false
                     for try await rawLine in bytes.lines {
                         try Task.checkCancellation()
                         guard let event = decoder.push(rawLine) else { continue }
@@ -124,12 +126,16 @@ struct AnthropicChatClient: LLMChatClient {
                         if chunk.type == "content_block_delta",
                            chunk.delta?.type == "text_delta",
                            let text = chunk.delta?.text {
-                            continuation.yield(text)
+                            continuation.yield(.delta(text))
+                        } else if chunk.type == "message_delta", let reason = chunk.delta?.stop_reason {
+                            // stop_reason 은 message_delta 안에 온다(§7.4). 잘림 여부만 기록하고 종료는 message_stop 에서.
+                            truncated = (reason == "max_tokens")
                         } else if chunk.type == "message_stop" {
                             break
                         }
                         // thinking_delta / 기타 이벤트는 무시(§7.4).
                     }
+                    continuation.yield(.done(truncated: truncated))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: (error as? ClientError) ?? Self.map(error))
@@ -145,9 +151,43 @@ struct AnthropicChatClient: LLMChatClient {
     private static func ensureOK(_ resp: URLResponse, _ data: Data?) throws {
         guard let http = resp as? HTTPURLResponse else { return }
         guard (200..<300).contains(http.statusCode) else {
-            let msg = data.flatMap { String(data: $0, encoding: .utf8) }
-            throw ClientError.http(http.statusCode, msg?.isEmpty == true ? nil : msg)
+            throw ClientError.http(http.statusCode, data.flatMap(Self.errorMessage))
         }
+    }
+
+    /// 비2xx 본문에서 사람용 메시지만 추출(§7.6).
+    /// `{"error":{"message":...}}`(Anthropic) 또는 `{"error":"..."}`(llama-server) JSON 을 시도하고,
+    /// 디코드 실패 시 raw 문자열로 fallback. 빈 본문은 nil.
+    private nonisolated static func errorMessage(from data: Data) -> String? {
+        if data.isEmpty { return nil }
+        if let envelope = try? JSONDecoder().decode(ErrorEnvelope.self, from: data),
+           let message = envelope.message, !message.isEmpty {
+            return message
+        }
+        let raw = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (raw?.isEmpty == false) ? raw : nil
+    }
+
+    /// 4xx/5xx 본문의 error 필드(객체형/문자열형 모두 대응).
+    private nonisolated struct ErrorEnvelope: Decodable {
+        let message: String?
+
+        private enum CodingKeys: String, CodingKey { case error }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            // Anthropic: {"error":{"message":"...","type":"..."}}
+            if let nested = try? container.decode(ErrorBody.self, forKey: .error) {
+                message = nested.message
+            // llama-server 일부 경로: {"error":"..."}
+            } else if let plain = try? container.decode(String.self, forKey: .error) {
+                message = plain
+            } else {
+                message = nil
+            }
+        }
+
+        private struct ErrorBody: Decodable { let message: String? }
     }
 
     /// 저수준 에러를 ClientError 로 분류(§7.6).
@@ -164,6 +204,8 @@ struct AnthropicChatClient: LLMChatClient {
                  NSURLErrorNetworkConnectionLost,
                  NSURLErrorCannotFindHost,
                  NSURLErrorDNSLookupFailed:
+                // 로컬 네트워크 권한 거부도 iOS 에선 명확한 NSURLError 코드가 없어 보통 이 부류로 들어온다.
+                // 그래서 .localNetworkDenied 를 별도로 반환하지 않고 .notConnected 로 통합한다(설명에 권한 안내 병기).
                 return .notConnected
             case NSURLErrorBadURL, NSURLErrorUnsupportedURL:
                 return .badURL

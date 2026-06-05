@@ -35,6 +35,7 @@ HOST=0.0.0.0 ./server/test-anthropic.sh "안녕"
 ## 이식성 (다른 머신)
 모델 경로가 이 맥에 고정돼 있다. 다른 머신에서는:
 - 첫 인자로 경로/HF 지정: `./server/serve.sh /path/to/model.gguf` 또는 `./server/serve.sh repo/name:QUANT`
+- 또는 `MODEL` 환경변수로 지정(인자 미지정 시 폴백): `MODEL=/path/to/model.gguf ./server/serve.sh`
 - 또는 `LLAMA_CACHE=<dir>`로 `-hf` 캐시 위치 변경
 
 ## 종료

@@ -38,6 +38,7 @@ struct SettingsView: View {
             serverSection
             connectionSection
             apiKeySection
+            responseSection
             helpSection
         }
         .navigationTitle("서버 설정")
@@ -144,6 +145,16 @@ struct SettingsView: View {
             Text("API Key (선택)")
         } footer: {
             Text("서버를 --api-key 로 보호한 경우에만 입력하세요. 무인증 LAN 환경이면 비워 두세요.")
+        }
+    }
+
+    private var responseSection: some View {
+        Section {
+            Toggle("스트리밍 응답", isOn: $settings.useStreaming)
+        } header: {
+            Text("응답 방식")
+        } footer: {
+            Text("켜면 토큰을 받는 즉시 표시합니다(권장). 끄면 응답이 모두 완성된 뒤 한 번에 표시합니다.")
         }
     }
 

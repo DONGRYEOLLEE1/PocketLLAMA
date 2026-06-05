@@ -34,7 +34,10 @@ final class ChatViewModel {
         !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !state.isBusy
     }
 
-    // MARK: - 전송(스트리밍, Phase 7 본선)
+    // MARK: - 전송(스트리밍 Phase 7 / 비스트림 Phase 6 분기)
+
+    /// max_tokens 로 잘렸을 때 답변 끝에 덧붙이는 안내.
+    private static let truncationNotice = "\n\n⚠️ 응답이 max_tokens 로 잘렸습니다"
 
     func send() {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -50,30 +53,75 @@ final class ChatViewModel {
         messages.append(reply)
         store.saveSession(messages)
 
-        state = .ingesting
-        // 마지막(빈 assistant turn) 제외 + 슬라이딩 윈도우.
-        var window = Array(messages.dropLast().suffix(historyWindow))
+        // 서버 연결 시도 단계(§8.4). 요청/스트림 시작 직전에 .ingesting 으로 전환한다.
+        state = .connecting
+
+        // 마지막(in-flight 빈 assistant turn) 제외 + 빈 content turn 일반 제외 + 슬라이딩 윈도우(§7.2).
+        var window = Array(
+            messages.dropLast()
+                .filter { !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                .suffix(historyWindow)
+        )
         // 윈도우가 assistant 로 시작하면 "첫 메시지는 user" 계약(§7.2) 위반 → 제거(400 방지).
         if window.first?.role == "assistant" { window.removeFirst() }
+
+        let streaming = store.useStreaming
 
         task = Task { [weak self] in
             guard let self else { return }
             defer { self.task = nil }
             do {
-                for try await delta in self.client.stream(messages: window, system: self.systemPrompt, maxTokens: self.maxTokens) {
-                    if self.state != .generating { self.state = .generating }
-                    reply.content += delta
-                    if let i = self.messages.lastIndex(where: { $0.id == reply.id }) {
-                        self.messages[i] = reply
-                    }
+                if streaming {
+                    try await self.runStreaming(window: window, reply: &reply)
+                } else {
+                    try await self.runNonStreaming(window: window, reply: &reply)
                 }
                 self.state = .idle
                 self.store.saveSession(self.messages)
+            } catch is CancellationError {
+                // 사용자 Cancel → 외부 Task 취소로 for try await 가 CancellationError 를 던진다(§8.5).
+                self.handleFailure(.cancelled, replyID: reply.id)
             } catch let error as ClientError {
                 self.handleFailure(error, replyID: reply.id)
             } catch {
                 self.handleFailure(.http(-1, error.localizedDescription), replyID: reply.id)
             }
+        }
+    }
+
+    /// 스트림 경로(Phase 7). 첫 delta 수신 시 .generating, .done(truncated:) 시 잘림 안내.
+    private func runStreaming(window: [ChatTurn], reply: inout ChatTurn) async throws {
+        // 요청/스트림 시작 직전: 프롬프트 분석 대기 단계.
+        state = .ingesting
+        for try await event in client.stream(messages: window, system: systemPrompt, maxTokens: maxTokens) {
+            switch event {
+            case .delta(let text):
+                if state != .generating { state = .generating }
+                reply.content += text
+                applyReply(reply)
+            case .done(let truncated):
+                if truncated {
+                    reply.content += Self.truncationNotice
+                    applyReply(reply)
+                }
+            }
+        }
+    }
+
+    /// 비스트림 경로(Phase 6). 응답을 한 번에 표시하고 잘림 시 안내를 덧붙인다.
+    private func runNonStreaming(window: [ChatTurn], reply: inout ChatTurn) async throws {
+        // 요청 시작 직전: 프롬프트 분석 대기 단계(비스트림은 응답이 한 번에 온다).
+        state = .ingesting
+        let completion = try await client.send(messages: window, system: systemPrompt, maxTokens: maxTokens)
+        try Task.checkCancellation()
+        state = .generating
+        reply.content = completion.text + (completion.truncated ? Self.truncationNotice : "")
+        applyReply(reply)
+    }
+
+    private func applyReply(_ reply: ChatTurn) {
+        if let i = messages.lastIndex(where: { $0.id == reply.id }) {
+            messages[i] = reply
         }
     }
 
