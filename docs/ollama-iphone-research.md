@@ -2,6 +2,8 @@
 
 작성일: 2026-04-02
 
+> **⚠️ v2 백엔드 전환(2026-06-05):** 이 문서는 초기 `Ollama` 전제로 작성됐다. 실제 구현은 **`llama.cpp`(`llama-server`) + Anthropic 호환 `/v1/messages`**(모델 `Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf`, 포트 8080)로 전환됐다. 현행 전제·계약은 계획서 `plans/swiftui-ollama-ios-mvp-plan.md`(v3)를 따른다. 아래 조사 내용은 의사결정 기록으로 보존한다.
+
 ## 목표
 
 맥북에서 `Ollama`로 LLM 서버를 띄우고, 아이폰에서 앱 형태로 접속해 실제로 써보는 경로를 조사했다.  

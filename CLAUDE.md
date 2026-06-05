@@ -2,7 +2,7 @@
 
 맥북에서 `llama.cpp`(`llama-server`)로 서빙하는 `Qwen3.6-35B-A3B` 모델에 아이폰 SwiftUI 앱(**PocketLlama**)이 Anthropic 호환 `/v1/messages`로 붙어 채팅하는 MVP 프로젝트.
 
-- **현재 단계**: 계획 확정(코드 미착수 — Xcode 빈 템플릿).
+- **현재 단계**: 구현 진행 — ✅ 게이트 통과(DoR) + Phase 1~8 구현·빌드 통과(에러 0)·QA 경계면 검증. Phase 9(실기기)는 iOS 26.5 플랫폼 설치 후(이 맥 미설치).
 - **SSOT 문서**: 구현 계획 `plans/swiftui-ollama-ios-mvp-plan.md`(v3) · 사전 조사 `docs/ollama-iphone-research.md`
 - **서버**: 별도 repo `~/workspace/dev/llm-serving`(`serve.sh`=`llama-server`). 아이폰 접속엔 `0.0.0.0` 바인딩 필요.
 
@@ -72,3 +72,4 @@
 |------|----------|------|------|
 | 2026-06-05 | 초기 구성 (strict-review 하네스) | strict-reviewer / strict-review / external-review | 코드·계획서 엄중 리뷰 + agy/grok 외부 리뷰 통합 |
 | 2026-06-05 | ios-build 하네스 추가 | swift-builder, ios-qa / ios-build, swiftui-patterns, server-gate, xcode-build-check | 구현 생산성 — 계획서 Phase를 코드로(생성-검증) + 서버 E2E 게이트 자동화 |
+| 2026-06-05 | 전체 구현 + 게이트 통과 + 마이그레이션 | app/PocketLlama(신규), server/, gate.sh·build-check 진화(macOS 폴백·bash3.2 버그) | 계획서 기반 Phase 1~8 구현 완료, 구 ollama-iphone 폐기·git init |

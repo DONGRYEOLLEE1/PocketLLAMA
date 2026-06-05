@@ -45,6 +45,8 @@
 
 ## 2. Definition of Ready — Pre-Phase 0 게이트 (신설, 필수)
 
+> ✅ **통과 완료 (2026-06-05, `plans/_gate.md`)**: `/health` 200, `/v1/models`(id=파일명), `/v1/messages` 비스트림 "Pong", SSE `text_delta` 모두 PASS. `model:"local"` 수용 확인. 무인증 동작. 자동화: `.claude/skills/server-gate/scripts/gate.sh`.
+
 > 리뷰 지적(Grok §3.2, §8): 앱이 쓸 경로(`/v1/messages`)가 **실측되지 않은 채** iOS를 짜기 시작하면, 중반에 "404/파싱 실패/경로 없음"으로 되돌릴 위험이 크다. 아래 8줄을 **모두 통과**해야 Phase 1로 간다.
 
 **서버 사실(확인됨):** `llama-server` 버전 9430에 `--api-key`(env `LLAMA_API_KEY`), `--reasoning [on|off|auto]`, `--jinja` 존재. `llm-serving/README.md`는 "최신 llama.cpp가 Anthropic Messages API(`/v1/messages`)를 스트리밍·tool use 포함 네이티브 지원"이라 명시 → **별도 변환 프록시 불필요**(Gemini 위험1은 과장). **단, 아래 E2E 실측으로 최종 확정한다.**
@@ -273,11 +275,11 @@ final class SSEDecoder {
 
 ### 7.5 보조 엔드포인트
 - **연결 테스트**: `GET /health` → 200이면 정상(Anthropic 경로엔 가벼운 GET 없음).
-- **모델 표시**: `GET /v1/models` (OpenAI 호환). **§2 게이트 5번에서 실측한 샘플 JSON을 여기 채운다.** 예상 형태:
+- **모델 표시**: `GET /v1/models` (OpenAI 호환). **실측 샘플(2026-06-05, `plans/_gate.md`):**
   ```json
-  { "object":"list", "data":[ { "id":"local", "object":"model", "created":..., "owned_by":"llamacpp" } ] }
+  { "object":"list", "data":[ { "id":"Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf", "object":"model", "created":1780667041, "owned_by":"llamacpp", "meta":{ "n_ctx":65536, "n_params":35505251456 } } ] }
   ```
-  → 표시값 `data[0].id`. **fallback**: `/v1/models` 실패해도 `/health`만 200이면 "모델: (이름 미상)"으로 채팅 진행 가능하게(Grok §4.7).
+  → 표시값 `data[0].id` = **모델 파일명**(`"local"`이 아님). 단 **요청의 `model:"local"`은 서버가 수용**(게이트 비스트림 "Pong" 확인) — 표시는 파일명, 요청은 `"local"`로 OK. **fallback**: `/v1/models` 실패해도 `/health`만 200이면 "모델: (이름 미상)"으로 채팅 진행 가능하게(Grok §4.7).
 
 ### 7.6 에러 계약 (Grok §4.6)
 - 4xx/5xx 시 본문 JSON(`{"error":{...}}` 또는 llama-server 형식)을 파싱해 사용자 메시지로.
