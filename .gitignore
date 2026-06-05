@@ -1,0 +1,26 @@
+# === 모델 가중치 (대용량, 버전관리 제외) ===
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# === macOS ===
+.DS_Store
+
+# === Xcode / Swift ===
+**/xcuserdata/
+*.xcuserstate
+**/xcshareddata/IDEWorkspaceChecks.plist
+build/
+DerivedData/
+*.xcframework
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# === 하네스 중간 산출물 ===
+_workspace/
+_workspace_prev/
+
+# === 로그 / 임시 ===
+*.log
