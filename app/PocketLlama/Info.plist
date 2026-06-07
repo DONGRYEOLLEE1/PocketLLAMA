@@ -6,7 +6,13 @@
 	<string>맥북에서 작동 중인 로컬 LLM 서버에 연결하여 대화를 송수신합니다.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsLocalNetworking</key>
+		<!-- 로컬 LLM 클라이언트: 사용자가 입력한 서버(LAN·Tailscale 100.x 등)에 http 로 붙으므로
+		     평문 HTTP 를 일반 허용한다.
+		     ⚠️ NSAllowsArbitraryLoads 와 NSAllowsLocalNetworking 을 함께 두면 iOS 10+ 에서는
+		     더 세분화된 NSAllowsLocalNetworking 이 우선하고 NSAllowsArbitraryLoads 가 무시되어,
+		     Tailscale(CGNAT 100.64/10 — ATS 의 "로컬 네트워크"에 미포함)이 다시 차단된다.
+		     따라서 NSAllowsArbitraryLoads 만 남긴다. -->
+		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
 </dict>
