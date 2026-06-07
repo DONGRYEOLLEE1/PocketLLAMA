@@ -242,7 +242,7 @@ private struct MessageBubble: View {
     var body: some View {
         HStack {
             if turn.isUser { Spacer(minLength: 40) }
-            Text(turn.content.isEmpty ? " " : turn.content)
+            bubbleContent
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(turn.isUser ? Color.accentColor.opacity(0.85) : Color.secondary.opacity(0.18))
@@ -252,5 +252,15 @@ private struct MessageBubble: View {
             if !turn.isUser { Spacer(minLength: 40) }
         }
         .frame(maxWidth: .infinity, alignment: turn.isUser ? .trailing : .leading)
+    }
+
+    // user 는 평문, assistant 는 마크다운 렌더.
+    @ViewBuilder
+    private var bubbleContent: some View {
+        if turn.isUser {
+            Text(turn.content.isEmpty ? " " : turn.content)
+        } else {
+            MarkdownMessageView(content: turn.content.isEmpty ? " " : turn.content)
+        }
     }
 }
