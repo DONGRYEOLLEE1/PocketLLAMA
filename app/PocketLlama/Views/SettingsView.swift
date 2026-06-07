@@ -3,10 +3,10 @@
 //  PocketLlama
 //
 //  Phase 3(설정) + Phase 4(연결 테스트) + Phase 5(모델 표시).
-//  - base URL 입력/검증(빈값·스킴·포트)/저장/복원
-//  - GET /health 연결 테스트 + 에러 분류 표시
-//  - GET /v1/models 모델 표시(실패 시 fallback)
-//  - 선택적 API Key 입력
+//  - base URL / apiKey 는 draft 로 편집하고 "완료" 시에만 store 에 커밋한다.
+//    (입력 도중 store 가 바뀌면 RootView 분기·ChatView .id 재생성이 트리거되어
+//     화면이 채팅으로 튕기거나 설정 시트가 닫히는 버그가 난다.)
+//  - GET /health 연결 테스트 + 에러 분류 / GET /v1/models 모델 표시(실패 시 fallback)
 //
 
 import SwiftUI
@@ -15,6 +15,12 @@ struct SettingsView: View {
     @Bindable var settings: AppSettingsStore
     /// 채팅에서 시트로 열렸을 때 닫기 콜백(루트에서 열리면 nil).
     var onDone: (() -> Void)? = nil
+
+    // 편집용 draft. store 는 commit() 에서만 갱신한다(입력 도중 화면 튕김 방지).
+    @State private var draftURL: String = ""
+    @State private var draftAPIKey: String = ""
+    @State private var draftUseStreaming: Bool = false
+    @State private var loaded = false
 
     @State private var connectionState: ConnectionState = .idle
     @State private var modelName: String?
@@ -27,11 +33,9 @@ struct SettingsView: View {
         case failure(String)
     }
 
-    private var validationMessage: String? {
-        ServerURL.validationMessage(settings.baseURLString)
-    }
-
+    private var validationMessage: String? { ServerURL.validationMessage(draftURL) }
     private var isValid: Bool { validationMessage == nil }
+    private var draftBaseURL: URL? { ServerURL.normalize(draftURL) }
 
     var body: some View {
         Form {
@@ -43,33 +47,49 @@ struct SettingsView: View {
         }
         .navigationTitle("서버 설정")
         .toolbar {
-            if let onDone {
-                #if os(iOS)
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("완료") { onDone() }.disabled(!isValid)
-                }
-                #else
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("완료") { onDone() }.disabled(!isValid)
-                }
-                #endif
+            // 완료 = draft 를 store 에 커밋. 루트(onDone=nil)에서는 커밋만 해도
+            // isConfigured 가 true 가 되어 RootView 가 채팅 화면으로 전환한다.
+            #if os(iOS)
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("완료") { commit() }.disabled(!isValid)
             }
+            #else
+            ToolbarItem(placement: .confirmationAction) {
+                Button("완료") { commit() }.disabled(!isValid)
+            }
+            #endif
+        }
+        .onAppear {
+            // 뷰가 동일 인스턴스로 재등장(re-appear)할 때 store 값으로 draft 를 덮어쓰지 않도록 최초 1회만 로드.
+            guard !loaded else { return }
+            draftURL = settings.baseURLString
+            draftAPIKey = settings.apiKey
+            draftUseStreaming = settings.useStreaming
+            loaded = true
         }
         .onDisappear { testTask?.cancel() }
+    }
+
+    /// draft 를 store 에 반영(이때 비로소 RootView/ChatView 가 새 값을 본다).
+    private func commit() {
+        settings.baseURLString = draftURL
+        settings.apiKey = draftAPIKey
+        settings.useStreaming = draftUseStreaming
+        onDone?()
     }
 
     // MARK: - 섹션
 
     private var serverSection: some View {
         Section {
-            TextField("http://192.168.0.10:8080", text: $settings.baseURLString)
+            TextField("http://192.168.0.10:8080", text: $draftURL)
                 .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled()
                 #if os(iOS)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 #endif
-                .onChange(of: settings.baseURLString) { _, _ in
+                .onChange(of: draftURL) { _, _ in
                     // 주소가 바뀌면 이전 테스트 결과 무효화.
                     connectionState = .idle
                     modelName = nil
@@ -78,7 +98,7 @@ struct SettingsView: View {
                 Label(validationMessage, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
-            } else if let url = settings.baseURL {
+            } else if let url = draftBaseURL {
                 Label("연결 대상: \(url.absoluteString)", systemImage: "link")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -135,7 +155,7 @@ struct SettingsView: View {
 
     private var apiKeySection: some View {
         Section {
-            SecureField("(선택) API Key", text: $settings.apiKey)
+            SecureField("(선택) API Key", text: $draftAPIKey)
                 .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled()
                 #if os(iOS)
@@ -150,7 +170,7 @@ struct SettingsView: View {
 
     private var responseSection: some View {
         Section {
-            Toggle("스트리밍 응답", isOn: $settings.useStreaming)
+            Toggle("스트리밍 응답", isOn: $draftUseStreaming)
         } header: {
             Text("응답 방식")
         } footer: {
@@ -166,10 +186,10 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - 연결 테스트(§7.5 + fallback)
+    // MARK: - 연결 테스트(§7.5 + fallback) — draft 기준으로 테스트한다.
 
     private func runConnectionTest() {
-        guard let baseURL = settings.baseURL else {
+        guard let baseURL = draftBaseURL else {
             connectionState = .failure(ClientError.badURL.errorDescription ?? "주소 오류")
             return
         }
@@ -179,7 +199,7 @@ struct SettingsView: View {
 
         let client = AnthropicChatClient(
             baseURL: baseURL,
-            apiKey: settings.apiKey.isEmpty ? nil : settings.apiKey
+            apiKey: draftAPIKey.isEmpty ? nil : draftAPIKey
         )
 
         testTask = Task {

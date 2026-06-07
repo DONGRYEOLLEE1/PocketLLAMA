@@ -29,7 +29,11 @@ enum ServerURL {
         }
         trimTrailingSlash()
 
-        guard let url = URL(string: s), url.scheme != nil, url.host != nil else { return nil }
+        // host 가 IP/도메인(점 포함)이거나 localhost 일 때만 유효한 서버 주소로 본다.
+        // (이게 없으면 "1" 한 글자가 "http://1" 로 보정돼 멀쩡한 주소로 오인된다 → 화면 튕김의 근본 원인.)
+        guard let url = URL(string: s), url.scheme != nil,
+              let host = url.host, host == "localhost" || host.contains(".")
+        else { return nil }
         return url
     }
 
