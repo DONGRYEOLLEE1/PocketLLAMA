@@ -117,11 +117,15 @@ struct AnthropicChatClient: LLMChatClient {
 
                     let decoder = SSEDecoder()
                     var truncated = false
-                    for try await rawLine in bytes.lines {
-                        try Task.checkCancellation()
-                        guard let event = decoder.push(rawLine) else { continue }
-                        if event.data == "[DONE]" { break }
-                        guard let chunk = try? JSONDecoder().decode(StreamChunk.self, from: Data(event.data.utf8)) else { continue }
+                    var done = false
+
+                    // ⚠️ bytes.lines(AsyncLineSequence)는 SSE 의 "빈 줄"(이벤트 경계)을 삼킨다 →
+                    // 빈-줄 기반 SSEDecoder 가 이벤트를 방출하지 못해 무응답이 된다(실측 확인).
+                    // 그래서 원시 바이트를 직접 '\n' 으로 분리해 빈 줄을 보존한다.
+                    func process(_ rawLine: String) {
+                        guard let event = decoder.push(rawLine) else { return }
+                        if event.data == "[DONE]" { done = true; return }
+                        guard let chunk = try? JSONDecoder().decode(StreamChunk.self, from: Data(event.data.utf8)) else { return }
 
                         if chunk.type == "content_block_delta",
                            chunk.delta?.type == "text_delta",
@@ -131,10 +135,25 @@ struct AnthropicChatClient: LLMChatClient {
                             // stop_reason 은 message_delta 안에 온다(§7.4). 잘림 여부만 기록하고 종료는 message_stop 에서.
                             truncated = (reason == "max_tokens")
                         } else if chunk.type == "message_stop" {
-                            break
+                            done = true
                         }
                         // thinking_delta / 기타 이벤트는 무시(§7.4).
                     }
+
+                    var buffer = [UInt8]()
+                    for try await byte in bytes {
+                        try Task.checkCancellation()
+                        if byte == 0x0A {                      // '\n' → 한 줄 완성(빈 줄도 그대로 전달)
+                            process(String(decoding: buffer, as: UTF8.self))
+                            buffer.removeAll(keepingCapacity: true)
+                            if done { break }
+                        } else {
+                            buffer.append(byte)
+                        }
+                    }
+                    // 스트림이 개행 없이 끝났을 때 남은 한 줄 처리.
+                    if !done, !buffer.isEmpty { process(String(decoding: buffer, as: UTF8.self)) }
+
                     continuation.yield(.done(truncated: truncated))
                     continuation.finish()
                 } catch {
