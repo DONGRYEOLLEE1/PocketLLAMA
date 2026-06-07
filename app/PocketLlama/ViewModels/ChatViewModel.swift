@@ -20,7 +20,7 @@ final class ChatViewModel {
     private let store: AppSettingsStore
     private let historyWindow = 12   // 최근 N 메시지만 전송(§7.2 슬라이딩 윈도우)
     private let maxTokens = 1024
-    private let systemPrompt = "You are a helpful assistant."
+    private let systemPrompt = "당신은 PocketLlama의 친절한 한국어 비서입니다. 간결하고 정확하게 답하고, 코드에는 마크다운 코드블록을 사용하도록 하세요."
 
     init(client: LLMChatClient, store: AppSettingsStore) {
         self.client = client
