@@ -130,9 +130,9 @@
 
 1. ~~컨셉 strict-review 검증~~ ✅ 완료(조건부 Go) → 본 v1.2에 반영
 2. ~~server-gate tools 계약 실측~~ ✅ PASS(`_workspace/gate-tools-measurement.md`)
-3. **v0.1 구현 계획서**: `v0.1-weather-briefing-websearch-plan.md` — Blocker/Major 해소 설계 포함
-4. `ios-build`(기능 A·B) → `ios-design`(C) 하네스로 구현 + 엄격 테스트
-5. 구현 후 로드맵 Phase 1(프로필 심화) → Phase 2(요약 메모리)로 브리핑 재료 확장
+3. ~~v0.1 구현~~ ✅ 완료(`v0.1-weather-briefing-websearch-plan.md` — 날씨 브리핑·웹검색 tool-calling·디자인, E2E 검증)
+4. **v0.2 개인화 메모리 강화**: `v0.2-memory-enhancement-plan.md` — 3계층 메모리(core 프로필·장기 기억·세션 요약), 온디바이스 SQLite, 추출 배치·HITL, save/search_memory tool. 로드맵 Phase 1·2·4 의 구체화
+5. 이후 로드맵 Phase 5(consolidation·능동성)로 확장
 
 ## 참조
 

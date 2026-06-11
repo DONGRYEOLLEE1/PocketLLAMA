@@ -2,8 +2,8 @@
 
 맥북에서 `llama.cpp`(`llama-server`)로 서빙하는 `Qwen3.6-35B-A3B` 모델에 아이폰 SwiftUI 앱(**PocketLlama**)이 Anthropic 호환 `/v1/messages`로 붙어 채팅하는 MVP 프로젝트.
 
-- **현재 단계**: v0.1 개인화 에이전트 구현 완료 — ✅ MVP(Phase 1~8) + 날씨 브리핑·로컬 알림·Tavily 웹검색 tool-calling·디자인 시스템. 빌드 에러 0, E2E 시뮬레이터 검증(알림 정시 발화·배너는 실기기 체크리스트). iOS 26.5 시뮬레이터 설치됨.
-- **SSOT 문서**: 컨셉 `plans/personalized-agent-concept.md`(v1.2) · v0.1 구현 계획 `plans/v0.1-weather-briefing-websearch-plan.md` · MVP 계획 `plans/swiftui-ollama-ios-mvp-plan.md`(v3, 완료) · 리서치 `plans/research-personalized-agent-*.md`
+- **현재 단계**: v0.2 개인화 메모리 구현 완료 — ✅ v0.1(브리핑·웹검색·디자인) + 3계층 메모리(프로필·세션 요약·SQLite 장기기억)·추출 파이프라인·save_memory tool·임베딩 서빙(Qwen3-Embedding-0.6B, 8081). 5대 시나리오 E2E 검증(`_workspace/qa-memory-e2e.md`). 알림 정시 발화·MemoryView 탭 조작은 실기기 체크리스트.
+- **SSOT 문서**: 컨셉 `plans/personalized-agent-concept.md`(v1.2) · v0.2 메모리 계획 `plans/v0.2-memory-enhancement-plan.md`(v1.0, 완료) · v0.1 구현 계획 `plans/v0.1-weather-briefing-websearch-plan.md`(완료) · MVP 계획 `plans/swiftui-ollama-ios-mvp-plan.md`(v3, 완료) · 리서치 `plans/research-personalized-agent-*.md`
 - **서버**: 별도 repo `~/workspace/dev/llm-serving`(`serve.sh`=`llama-server`). 아이폰 접속엔 `0.0.0.0` 바인딩 필요.
 
 ---
@@ -93,3 +93,4 @@
 | 2026-06-05 | 전체 구현 + 게이트 통과 + 마이그레이션 | app/PocketLlama(신규), server/, gate.sh·build-check 진화(macOS 폴백·bash3.2 버그) | 계획서 기반 Phase 1~8 구현 완료, 구 ollama-iphone 폐기·git init |
 | 2026-06-11 | ios-design 하네스 추가 | ui-designer, design-critic / ios-design, ios-design-system, apple-hig(+contrast.py) | 비주얼/UX 디자인 생산성 — 디자인 시스템(토큰)을 코드로(생성-검증) + HIG·접근성·대비 자동 검증. 방향성 차별화·개성 우선, 외형은 자유·접근성은 불가침 |
 | 2026-06-11 | v0.1 개인화 에이전트 구현(전 하네스 동원) | 컨셉 v1.2+구현계획(strict-review 조건부 Go 반영), tools 게이트 실측(네이티브 PASS·b9430 고정), P0 Keychain·W1 날씨·T1 tools 클라이언트·W2 알림/설정·W3 브리핑·T2 웹검색 루프(ios-build), DesignSystem(ios-design), E2E 드라이버+시뮬레이터 검증 | "아침에 먼저 말 거는 비서" 1단계 — 날씨 브리핑(벨/내용 분리)+간단 tool-calling. `.gitignore` `models/`→`/models/` 교정(Models/ 소스 미추적 잠복 이슈 해소) |
+| 2026-06-12 | v0.2 개인화 메모리 구현 | 계획 v1.0(strict-review No-Go→조건부 Go: ScenePhase 폐기→pending 큐·FTS5→LIKE·tool 스키마 일반화 반영), M0 게이트(임베딩 마진 0.477·추출 8/8), M1 프로필·M2 세션 요약·M3 SQLite 장기기억(추출·NOOP·dedup·만료·HITL)·M4 save_memory(ios-build), serve.sh EMBED 이중 기동, 5대 시나리오 E2E(DB 직접 검사) | "나를 기억하는 비서" 2단계 — 3계층 메모리. 임베딩=Qwen3-Embedding-0.6B Q8(8081, --pooling last 필수) |
