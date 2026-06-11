@@ -19,27 +19,29 @@
 
 ## 조사한 접근·사례
 
-| 이름 | 종류 | 핵심 메커니즘 | 성숙도 | PocketLlama 관련성 |
-|---|---|---|---|---|
-| MemGPT / Letta | 논문+런타임 | LLM 컨텍스트를 OS 가상메모리처럼 3계층(core/recall/archival)으로, 모델이 tool call로 self-edit | production | 메모리 청사진. 단 self-edit는 tool-calling 신뢰도에 좌우 |
-| Mem0 / Mem0g | 프레임워크 | 추출(passive)→통합(ADD/UPDATE/DELETE/NOOP) 2단계, 벡터+그래프, top-k 주입 | production | 비용효율 최고: 전체 대화 대신 추출 사실만 주입 |
-| Zep / Graphiti | 프레임워크 | 시간 지식그래프 — 관계마다 유효구간(타임스탬프), 덮어쓰기 대신 과거 보존 | production | "예전엔 X 지금은 Y" 구분 → 구식정보 환각 감소 |
-| MemMachine | 논문/OSS | STM/LTM/Profile 3계층, raw 에피소드 보존(추출 최소화), 벡터+그래프+컨텍스트화 검색 | experimental | 로컬 ~3B엔 raw 보존형이 추출형보다 적합 |
-| MemoryLLM | 프로젝트 | 슬라이딩 윈도우 + ChromaDB + 비동기 사실 추출 + top-5 주입 (프레임워크 無) | experimental | PocketLlama가 그대로 베낄 최소 DIY 레시피 |
-| Personal_LLM / llm-assistant | 프로젝트 | 벡터+KV 하이브리드 / LangChain+Ollama 모듈형 | experimental | "시맨틱+KV 이원화"가 실전 정석임을 보여줌 |
-| localLLM (iOS) | 프로젝트 | 온디바이스 llama.cpp + HealthKit/PDFKit/Vision으로 개인 데이터 라이브 주입 | emerging | "tool 없이" OS 프레임워크로 개인화하는 결정론적 경로 |
-| ClawdBot/Moltbot 참사 | 안티패턴 | 원클릭 설치가 기본 포트 18789를 공개 노출, 인증 optional→유출 | (사건) | PocketLlama 0.0.0.0 바인딩과 동형 위험 — 필독 |
-| Apple Foundation Models (iOS 26) | 프레임워크 | OS 내장 ~3B 온디바이스, `@Generable`/Tool 프로토콜/constrained decoding | production | 무료 온디바이스 라우팅. 단 iOS 26+ 요구 |
-| App Intents + IndexedEntity | 프레임워크 | 앱 데이터를 OS 시맨틱 인덱스에 노출, Siri/Shortcuts 양방향 | production | 클라우드 없이 OS 개인 컨텍스트 통합하는 Apple-native 경로 |
-| LocalLLMClient (Swift) | 프레임워크 | llama.cpp+MLX 백엔드를 단일 Swift API로, async textStream() | emerging/exp. | 온디바이스 폴백 후보. 단 API 실험 상태 |
-| SwiftMCP / MCP Swift SDK | 프로젝트 | Foundation Models ↔ MCP 브리지, JSON Schema→DynamicGenerationSchema | experimental | 도구를 표준 프로토콜로. JSON-text 추출/주입 메커니즘 참고 |
-| Home Assistant LLM API | 패턴 | intent→tool 동적 주입, expose 권한통제, 2-tier 라우팅, prompt-caching | widely-used | tool-calling 설계의 직접 레퍼런스(3대 패턴) |
-| Open WebUI | 프로젝트 | self-host RAG(청킹/임베더/top-k/벡터DB) + BYOF 파이썬 함수 + MCP | widely-used | 서버측 지식 파이프라인 청사진 |
-| text-to-SQL 비서 (DEV) | 기법 | 벡터 없이 SQLite + 스키마 introspection 주입 + 키워드 정확매칭 grounding | experimental | RAG 회피 경량 개인화 — 1차 후보로 현실적 |
-| Enchanted / Reins / Local_LLM_App | 프로젝트 | Swift↔자체호스팅 채팅 클라이언트(음성·이미지·마크다운/대화별 프리셋/QR 페어링·SwiftData) | widely-used~emerging | PocketLlama와 같은 카테고리의 UX·영속 청사진 |
-| MLX Swift + LoRA | 기법 | 어댑터만 학습→safetensors 핫스왑, quantized training | emerging | 야간 LoRA 개인화. 단 35B MoE엔 무거움 |
-| 소형 모델 툴콜링(Qwen3/Hermes) | 기법 | Qwen은 tool_call을 content JSON 텍스트로 반환, Qwen-Agent 파서, LoRA 스키마 적응 | production | 서버 모델이 바로 Qwen3-MoE라 직결 |
-| 2-tier + GBNF tool-calling | 기법 | GBNF 그래머로 출력 형식 강제, 결정적 1차 게이트 후 LLM fallback, prompt caching | emerging | "신뢰성은 모델이 아니라 튜닝"의 실전 교훈 |
+
+| 이름                                | 종류     | 핵심 메커니즘                                                                    | 성숙도                  | PocketLlama 관련성                            |
+| --------------------------------- | ------ | -------------------------------------------------------------------------- | -------------------- | ------------------------------------------ |
+| MemGPT / Letta                    | 논문+런타임 | LLM 컨텍스트를 OS 가상메모리처럼 3계층(core/recall/archival)으로, 모델이 tool call로 self-edit | production           | 메모리 청사진. 단 self-edit는 tool-calling 신뢰도에 좌우 |
+| Mem0 / Mem0g                      | 프레임워크  | 추출(passive)→통합(ADD/UPDATE/DELETE/NOOP) 2단계, 벡터+그래프, top-k 주입               | production           | 비용효율 최고: 전체 대화 대신 추출 사실만 주입                |
+| Zep / Graphiti                    | 프레임워크  | 시간 지식그래프 — 관계마다 유효구간(타임스탬프), 덮어쓰기 대신 과거 보존                                 | production           | "예전엔 X 지금은 Y" 구분 → 구식정보 환각 감소              |
+| MemMachine                        | 논문/OSS | STM/LTM/Profile 3계층, raw 에피소드 보존(추출 최소화), 벡터+그래프+컨텍스트화 검색                  | experimental         | 로컬 ~3B엔 raw 보존형이 추출형보다 적합                  |
+| MemoryLLM                         | 프로젝트   | 슬라이딩 윈도우 + ChromaDB + 비동기 사실 추출 + top-5 주입 (프레임워크 無)                       | experimental         | PocketLlama가 그대로 베낄 최소 DIY 레시피             |
+| Personal_LLM / llm-assistant      | 프로젝트   | 벡터+KV 하이브리드 / LangChain+Ollama 모듈형                                         | experimental         | "시맨틱+KV 이원화"가 실전 정석임을 보여줌                  |
+| localLLM (iOS)                    | 프로젝트   | 온디바이스 llama.cpp + HealthKit/PDFKit/Vision으로 개인 데이터 라이브 주입                  | emerging             | "tool 없이" OS 프레임워크로 개인화하는 결정론적 경로          |
+| ClawdBot/Moltbot 참사               | 안티패턴   | 원클릭 설치가 기본 포트 18789를 공개 노출, 인증 optional→유출                                 | (사건)                 | PocketLlama 0.0.0.0 바인딩과 동형 위험 — 필독        |
+| Apple Foundation Models (iOS 26)  | 프레임워크  | OS 내장 ~3B 온디바이스, `@Generable`/Tool 프로토콜/constrained decoding               | production           | 무료 온디바이스 라우팅. 단 iOS 26+ 요구                 |
+| App Intents + IndexedEntity       | 프레임워크  | 앱 데이터를 OS 시맨틱 인덱스에 노출, Siri/Shortcuts 양방향                                  | production           | 클라우드 없이 OS 개인 컨텍스트 통합하는 Apple-native 경로    |
+| LocalLLMClient (Swift)            | 프레임워크  | llama.cpp+MLX 백엔드를 단일 Swift API로, async textStream()                       | emerging/exp.        | 온디바이스 폴백 후보. 단 API 실험 상태                   |
+| SwiftMCP / MCP Swift SDK          | 프로젝트   | Foundation Models ↔ MCP 브리지, JSON Schema→DynamicGenerationSchema           | experimental         | 도구를 표준 프로토콜로. JSON-text 추출/주입 메커니즘 참고      |
+| Home Assistant LLM API            | 패턴     | intent→tool 동적 주입, expose 권한통제, 2-tier 라우팅, prompt-caching                 | widely-used          | tool-calling 설계의 직접 레퍼런스(3대 패턴)            |
+| Open WebUI                        | 프로젝트   | self-host RAG(청킹/임베더/top-k/벡터DB) + BYOF 파이썬 함수 + MCP                       | widely-used          | 서버측 지식 파이프라인 청사진                           |
+| text-to-SQL 비서 (DEV)              | 기법     | 벡터 없이 SQLite + 스키마 introspection 주입 + 키워드 정확매칭 grounding                   | experimental         | RAG 회피 경량 개인화 — 1차 후보로 현실적                 |
+| Enchanted / Reins / Local_LLM_App | 프로젝트   | Swift↔자체호스팅 채팅 클라이언트(음성·이미지·마크다운/대화별 프리셋/QR 페어링·SwiftData)                 | widely-used~emerging | PocketLlama와 같은 카테고리의 UX·영속 청사진            |
+| MLX Swift + LoRA                  | 기법     | 어댑터만 학습→safetensors 핫스왑, quantized training                                | emerging             | 야간 LoRA 개인화. 단 35B MoE엔 무거움                |
+| 소형 모델 툴콜링(Qwen3/Hermes)           | 기법     | Qwen은 tool_call을 content JSON 텍스트로 반환, Qwen-Agent 파서, LoRA 스키마 적응          | production           | 서버 모델이 바로 Qwen3-MoE라 직결                    |
+| 2-tier + GBNF tool-calling        | 기법     | GBNF 그래머로 출력 형식 강제, 결정적 1차 게이트 후 LLM fallback, prompt caching              | emerging             | "신뢰성은 모델이 아니라 튜닝"의 실전 교훈                   |
+
 
 ### 1) 메모리 — MemGPT/Letta · Mem0 · MemMachine (수렴하는 한 가지 골격)
 
@@ -94,16 +96,19 @@ PocketLlama와 같은 카테고리(Swift 앱 ↔ 자체 호스팅 서버)의 성
 원칙: **무거운 개인화 인프라(기억·RAG·도구 실행)는 Mac 서버에 두고, Swift 앱은 얇은 스트리밍 클라이언트로 남긴다.** 이는 조사한 모든 프로덕션 사례(HA·Open WebUI·mem0/Letta 서버·text-to-SQL)와 일치하며 1인 개발·단일 사용자 제약에도 맞는다.
 
 ### 쉬운 것 (낮은 비용·높은 효과)
+
 - **영속 격상(UserDefaults → SwiftData)**: Local_LLM_App·Reins 패턴을 거의 그대로 차용. 멀티 스레드·대화별 시스템 프롬프트/샘플링 프리셋·자동 제목·연결 상태 표시·스트리밍 중단. **단일 사용자라 멀티테넌시 복잡성 없음.**
 - **보안 락다운**: API 키 강제 + 로컬 WiFi/Tailscale 한정 + Keychain. 이미 server-gate에 인증 재검증이 있으므로 게이트에 "무인증 200=실패" 단정 추가만 하면 됨.
 - **경량 개인화(text-to-SQL)**: 개인 구조화 데이터(대화 로그·캘린더·노트)를 서버 SQLite에 모으고 스키마 주입 + 키워드 정확매칭 grounding. 임베딩 인프라 불필요, 의존성 극소.
 - **KV 사실 저장**: 이름·생일·주소 같은 정확값은 UserDefaults(또는 서버 SQLite KV)로 충분. 시스템 프롬프트에 프로파일로 주입하면 즉시 "개인화" 체감.
 
 ### 중간 (서버측 인프라 필요·검증 필요)
+
 - **메모리/RAG**: MemoryLLM/MemMachine 레시피를 경량화 — llama.cpp `/embeddings` 엔드포인트 + 서버측 SQLite-vec/Chroma/Qdrant. 슬라이딩 윈도우(최근 N턴) + 비동기 사실 추출 + top-k 주입. **단 임베딩 모델 별도 서빙이 필요하고, 추출 LLM 호출 비용은 응답 후 비동기(야간 배치)로 숨겨야 함.**
 - **벡터 저장**: UserDefaults는 벡터검색에 부적합 → Mac 측 SQLite-vec/Chroma. 애매한 선호/맥락 전용.
 
 ### 어려운 것 / 막히는 지점
+
 - **도구호출 신뢰성(최대 리스크)**: Qwen3.6-35B-A3B는 활성 ~3B라 tool-calling이 본질적으로 불안정할 수 있고, tool_call이 표준 필드가 아닌 **content 내 JSON 텍스트**로 올 위험. → **GBNF/JSON 그래머 강제 + 2-tier 라우팅(결정적 1차 게이트) + 시스템 프롬프트 튜닝 + 회귀 벤치**로 먼저 확보. Letta식 self-edit 메모리는 이 신뢰성이 확보된 **다음** 단계.
 - **온디바이스 35B**: 불가(iPhone 천장 3B/4bit). → 현 원격 설계 유지. 온디바이스는 폴백/라우팅 보조로만.
 - **iOS 26 의존 경로 차단**: Apple Foundation Models·SwiftMCP·MLX·App Intents 고급 기능은 모두 **iOS 26+ 요구 → 이 맥 미설치(Phase 9 실기기 미완과 동일 제약)**. 현 MVP엔 즉시 불가, 향후 옵션.
@@ -114,13 +119,15 @@ PocketLlama와 같은 카테고리(Swift 앱 ↔ 자체 호스팅 서버)의 성
 
 ## 권장 채택안
 
-| 우선순위 | 채택안 | 난이도 | 선행조건 |
-|---|---|---|---|
-| 1 | **보안 락다운** — API 키 강제 + 로컬 WiFi/Tailscale 한정 + Keychain 저장. server-gate에 "무인증 200=실패" 단정 추가 | 하 | 없음(server-gate 인증 재검증 이미 존재). 코드보다 먼저 |
-| 2 | **영속 격상** — UserDefaults → SwiftData(멀티 스레드·대화별 프리셋·자동 제목·연결 상태·스트리밍 중단) | 하~중 | iOS 17+ SwiftData. Local_LLM_App/Reins 패턴 차용 |
-| 3 | **도구호출 신뢰성 기반** — llama.cpp GBNF/JSON 그래머로 tool 출력 형식 강제 + 2-tier 라우팅(결정적 1차 게이트 → LLM fallback) + Swift SSE `tool_use` 파서 보강 | 중~상 | llama.cpp `--jinja`/그래머 검증, 회귀 벤치 셋. 기억 도입의 선결 조건 |
-| 4 | **경량 개인화(KV + text-to-SQL)** — 정확값은 KV 프로파일 주입, 구조화 개인 데이터는 서버 SQLite + 스키마 주입 + 키워드 grounding | 중 | 서버측 SQLite, 읽기전용 SQL 실행, Qwen SQL 생성력 검증 |
-| 5 | **메모리 계층(raw 보존형)** — 슬라이딩 윈도우 + 비동기 사실 추출 + top-k 시맨틱 주입. MemMachine/MemoryLLM 레시피 경량화(SQLite-vec + llama.cpp `/embeddings`), 추출은 야간 배치, 1차 HITL 확인 | 상 | 임베딩 모델 별도 서빙, 벡터 저장소, #3 신뢰성 선행 |
+
+| 우선순위 | 채택안                                                                                                                                                  | 난이도 | 선행조건                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------- |
+| 1    | **보안 락다운** — API 키 강제 + 로컬 WiFi/Tailscale 한정 + Keychain 저장. server-gate에 "무인증 200=실패" 단정 추가                                                          | 하   | 없음(server-gate 인증 재검증 이미 존재). 코드보다 먼저             |
+| 2    | **영속 격상** — UserDefaults → SwiftData(멀티 스레드·대화별 프리셋·자동 제목·연결 상태·스트리밍 중단)                                                                             | 하~중 | iOS 17+ SwiftData. Local_LLM_App/Reins 패턴 차용      |
+| 3    | **도구호출 신뢰성 기반** — llama.cpp GBNF/JSON 그래머로 tool 출력 형식 강제 + 2-tier 라우팅(결정적 1차 게이트 → LLM fallback) + Swift SSE `tool_use` 파서 보강                        | 중~상 | llama.cpp `--jinja`/그래머 검증, 회귀 벤치 셋. 기억 도입의 선결 조건 |
+| 4    | **경량 개인화(KV + text-to-SQL)** — 정확값은 KV 프로파일 주입, 구조화 개인 데이터는 서버 SQLite + 스키마 주입 + 키워드 grounding                                                       | 중   | 서버측 SQLite, 읽기전용 SQL 실행, Qwen SQL 생성력 검증          |
+| 5    | **메모리 계층(raw 보존형)** — 슬라이딩 윈도우 + 비동기 사실 추출 + top-k 시맨틱 주입. MemMachine/MemoryLLM 레시피 경량화(SQLite-vec + llama.cpp `/embeddings`), 추출은 야간 배치, 1차 HITL 확인 | 상   | 임베딩 모델 별도 서빙, 벡터 저장소, #3 신뢰성 선행                   |
+
 
 > 향후(iOS 26 플랫폼 설치 후) 옵션: Apple Foundation Models 온디바이스 라우팅(쉬운 질의), App Intents+IndexedEntity로 OS 개인 컨텍스트(캘린더·노트)·Siri/Shortcuts 양방향, SwiftMCP/MCP Swift SDK로 도구 표준화, LocalLLMClient(llama.cpp+MLX) 온디바이스 폴백.
 
@@ -177,3 +184,4 @@ PocketLlama와 같은 카테고리(Swift 앱 ↔ 자체 호스팅 서버)의 성
 - [I Built a Private AI Assistant That Queries My Git History and PM Data — Using Only Local LLMs (DEV)](https://dev.to/pouria_zand/i-built-a-private-ai-assistant-that-queries-my-git-history-and-project-management-data-using-only-39mn)
 - [tdi/awesome-private-ai (GitHub README)](https://github.com/tdi/awesome-private-ai/blob/main/README.md)
 - [10 Best Private Personal AI Assistants in 2026 (Vellum)](https://www.vellum.ai/blog/best-private-personal-ai-assistants)
+
