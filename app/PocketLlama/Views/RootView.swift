@@ -23,6 +23,10 @@ struct RootView: View {
                 }
             }
         }
+        // [DesignSystem] 디자인 토큰을 전역 단일 소스로 주입. 모든 하위 View가 @Environment(\.theme)로 읽는다.
+        .environment(\.theme, Theme())
+        // 브랜드 액센트를 시스템 틴트로 — 토글·기본 컨트롤·네비게이션 강조까지 일관 보라.
+        .tint(.plAccent)
         // ⚠️ 이 분기는 store 의 실시간 값에 반응한다. SettingsView 가 draft 로 편집하고
         //    "완료"에서만 store 에 커밋하므로, 입력 도중에는 isConfigured/baseURL 이
         //    바뀌지 않아 화면이 튕기지 않고 설정 시트도 닫히지 않는다.

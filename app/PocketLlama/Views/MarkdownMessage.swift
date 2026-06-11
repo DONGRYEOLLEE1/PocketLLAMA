@@ -269,11 +269,12 @@ struct MarkdownMessageView: View {
 
         case let .quote(text):
             HStack(spacing: 8) {
+                // [DesignSystem] 인용 막대를 브랜드 액센트로 — 어시스턴트 말풍선 안에서 톤 통일.
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.secondary.opacity(0.5))
+                    .fill(Color.plAccent.opacity(0.55))
                     .frame(width: 3)
                 Text(MarkdownInline.attributed(text))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.plTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -287,9 +288,10 @@ struct MarkdownMessageView: View {
 
     private func listRow(marker: String, text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
+            // [DesignSystem] 리스트 마커를 액센트로 — 가독성 + 브랜드 톤.
             Text(marker)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.plAccent)
             Text(MarkdownInline.attributed(text))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -312,6 +314,7 @@ struct MarkdownMessageView: View {
 /// 어시스턴트(연회색) 말풍선 안에서도 대비를 확보하고, 긴 코드 줄은 줄바꿈 대신 가로 스크롤.
 /// 코드만 따로 선택 가능(.textSelection(.enabled)).
 private struct CodeBlockView: View {
+    @Environment(\.theme) private var theme
     let language: String?
     let code: String
 
@@ -319,33 +322,26 @@ private struct CodeBlockView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let language, !language.isEmpty {
                 Text(language)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.top, 6)
+                    .font(.plCaption2)
+                    .foregroundStyle(.plTextSecondary)
+                    .padding(.horizontal, theme.spacing.s + 2)
+                    .padding(.top, theme.spacing.xs + 2)
             }
             ScrollView(.horizontal, showsIndicators: false) {
+                // 등폭 + Dynamic Type 연동(.callout 텍스트 스타일 기반) — 코드 가독성 의도.
                 Text(code.isEmpty ? " " : code)
                     .font(.system(.callout, design: .monospaced))
                     .textSelection(.enabled)
-                    .padding(10)
+                    .padding(theme.spacing.s + 2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(codeBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(.plBgPrimary)
+        .clipShape(RoundedRectangle(cornerRadius: theme.radius.small, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: theme.radius.small, style: .continuous)
+                .strokeBorder(Color.plAccent.opacity(0.12), lineWidth: 1)
         )
-    }
-
-    private var codeBackground: Color {
-        #if os(iOS)
-        Color(uiColor: .secondarySystemBackground)
-        #else
-        Color(nsColor: .textBackgroundColor)
-        #endif
     }
 }

@@ -9,19 +9,24 @@
 import SwiftUI
 
 struct ModelInfoView: View {
+    @Environment(\.theme) private var theme
     let client: LLMChatClient
 
     @State private var modelName: String?
     @State private var didLoad = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: theme.spacing.xs + 2) {
+            // [DesignSystem] 모델 칩 — 연결됨을 보라 점으로 은은히 알리고, 라벨은 토큰 색.
+            Circle()
+                .fill(modelName != nil ? Color.plSuccess : Color.plTextSecondary.opacity(0.5))
+                .frame(width: 6, height: 6)
             Image(systemName: "cpu")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.plCaption)
+                .foregroundStyle(.plAccent)
             Text(displayName)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.plCaption)
+                .foregroundStyle(.plTextSecondary)
                 .lineLimit(1)
         }
         .task {
