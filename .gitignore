@@ -1,5 +1,6 @@
 # === 모델 가중치 (대용량, 버전관리 제외) ===
-models/
+# 루트 앵커링 필수: 무앵커 `models/` 는 대소문자 무시 FS에서 app/PocketLlama/Models/(Swift 소스)까지 매칭한다
+/models/
 *.gguf
 *.bin
 *.safetensors
@@ -24,3 +25,7 @@ _workspace_prev/
 
 # === 로그 / 임시 ===
 *.log
+
+# 비밀키(.env) — 커밋 금지
+.env
+app/PocketLlama/Generated/
