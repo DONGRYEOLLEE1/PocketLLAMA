@@ -180,19 +180,21 @@ final class BriefingViewModel {
         if let pop = w.precipitationProbability {
             lines.append("오늘 강수확률: \(pop)%")
         }
-        lines.append("\n위 정보를 바탕으로 오늘 아침 브리핑을 만들어 주세요.")
+        // [v0.2 M2] 직전 세션 요약이 있으면 user 턴에 포함 — 브리핑이 "지난 이야기"를 언급할 수 있게.
+        if let summary = store.loadLastSessionSummary() {
+            let text = summary.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty {
+                lines.append("\n어제까지의 대화 요약: \(text)")
+            }
+        }
+        lines.append("\n위 정보를 바탕으로 오늘 아침 브리핑을 만들어 주세요. 지난 대화 맥락이 있으면 자연스럽게 한 번 언급해도 좋습니다.")
         return lines.joined(separator: "\n")
     }
 
-    /// 프로필 주입(이름·소개 비면 생략, §4·§5 동일 규칙).
+    /// [v0.2 M1] 프로필 주입 — ChatViewModel 과 동일한 coreProfileBlock 헬퍼 사용(주입 형식 일치).
     private static func profileSuffix(store: AppSettingsStore) -> String {
-        let name = store.userName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let intro = store.userIntro.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty || !intro.isEmpty else { return "" }
-        var parts: [String] = []
-        if !name.isEmpty { parts.append("이름: \(name)") }
-        if !intro.isEmpty { parts.append("소개: \(intro)") }
-        return "\n\n[사용자 정보] " + parts.joined(separator: ", ")
+        guard let profile = store.coreProfileBlock() else { return "" }
+        return "\n\n" + profile
     }
 
     // MARK: - 표시 헬퍼

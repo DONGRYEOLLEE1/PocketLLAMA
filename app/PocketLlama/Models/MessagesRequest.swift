@@ -91,25 +91,56 @@ enum WireBlock: Encodable {
 }
 
 /// [Phase T1] tool 정의(§3 — 요청 tools 배열 요소).
+///
+/// [v0.2 M4] InputSchema 다중 속성 일반화(리뷰 ③-E Blocker 해소).
+/// 기존 query 단일 하드코딩 → `properties: [String: Property]` 사전 + `required: [String]` 로 일반화.
+/// save_memory(text/type/importance) 같은 다중 인자 tool 을 표현하기 위함. 인코딩 키 순서는
+/// sorted 로 안정화(같은 입력이면 같은 바이트 → prefix cache·재현성 보존, M-D10 정신).
+/// webSearch 정의는 동일 와이어(properties:{query:{...}}, required:["query"])로 유지 → 회귀 0.
 struct ToolDefinition: Encodable {
     let name: String
     let description: String
     let input_schema: InputSchema
 
-    /// 우리 단일 web_search tool 에 맞춘 구체 스키마(§3).
-    /// {type:"object", properties:{query:{type,description}}, required:["query"]}
+    /// 다중 속성 입력 스키마(§3 — {type:"object", properties:{…}, required:[…]}).
     struct InputSchema: Encodable {
         let type: String
-        let properties: Properties
+        let properties: [String: Property]
         let required: [String]
 
-        struct Properties: Encodable {
-            let query: Property
+        struct Property: Encodable {
+            let type: String          // "string" | "integer" | ...
+            let description: String
         }
 
-        struct Property: Encodable {
-            let type: String
-            let description: String
+        private enum CodingKeys: String, CodingKey { case type, properties, required }
+
+        /// properties 사전을 키 정렬해 인코딩(키 순서 안정화 — 재현성·캐시 보존).
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(type, forKey: .type)
+            try container.encode(SortedProperties(properties), forKey: .properties)
+            try container.encode(required, forKey: .required)
+        }
+
+        /// 키 정렬 인코딩을 강제하는 properties 래퍼(Swift Dictionary 의 비결정 순서 제거).
+        private struct SortedProperties: Encodable {
+            let dict: [String: Property]
+            init(_ d: [String: Property]) { self.dict = d }
+
+            private struct DynamicKey: CodingKey {
+                let stringValue: String
+                init(stringValue: String) { self.stringValue = stringValue }
+                var intValue: Int? { nil }
+                init?(intValue: Int) { nil }
+            }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: DynamicKey.self)
+                for key in dict.keys.sorted() {
+                    try container.encode(dict[key], forKey: DynamicKey(stringValue: key))
+                }
+            }
         }
     }
 
@@ -119,8 +150,24 @@ struct ToolDefinition: Encodable {
         description: "최신 정보·시세·뉴스·날씨 등 실시간성 질문에 한해 웹을 검색한다. query 에 검색어를 넣어 호출하라.",
         input_schema: InputSchema(
             type: "object",
-            properties: .init(query: .init(type: "string", description: "검색할 질의문")),
+            properties: ["query": .init(type: "string", description: "검색할 질의문")],
             required: ["query"]
+        )
+    )
+
+    /// [v0.2 M4] 명시 저장 tool(M-D11). description 을 좁혀 "기억해 줘" 류 명시 요청에만 발동.
+    /// 인자: text(필수)·type(선호|사실|일정|관계)·importance(1~10). 라우팅은 ChatViewModel(§4).
+    static let saveMemory = ToolDefinition(
+        name: "save_memory",
+        description: "사용자가 명시적으로 '기억해 달라'고 요청한 사실을 저장한다. 명시 요청이 있을 때만 사용",
+        input_schema: InputSchema(
+            type: "object",
+            properties: [
+                "text": .init(type: "string", description: "기억할 내용(간결한 한 문장)"),
+                "type": .init(type: "string", description: "선호|사실|일정|관계 중 하나"),
+                "importance": .init(type: "integer", description: "중요도 1~10"),
+            ],
+            required: ["text"]
         )
     )
 }

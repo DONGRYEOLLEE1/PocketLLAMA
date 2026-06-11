@@ -41,10 +41,12 @@ enum E2EDriver {
     static var scheduleDaily: Bool { has("--e2e-schedule-daily") }
     static var clearTavily: Bool { has("--e2e-clear-tavily") }
     static var showSettings: Bool { has("--e2e-show-settings") }
+    /// [v0.2 M3 검증] 복원된 세션으로 newChat 실행 → pending 큐 적재 + 추출 처리(쓰기 경로 E2E).
+    static var newChatOnLaunch: Bool { has("--e2e-newchat") }
 
     static var isActive: Bool {
         sendText != nil || briefingOnLaunch || notifAfterSeconds != nil
-            || scheduleDaily || clearTavily || showSettings
+            || scheduleDaily || clearTavily || showSettings || newChatOnLaunch
     }
 
     /// 검증 결과 기록(호스트에서 defaults read 로 회수).

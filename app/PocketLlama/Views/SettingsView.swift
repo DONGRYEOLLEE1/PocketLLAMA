@@ -28,6 +28,11 @@ struct SettingsView: View {
     @State private var draftCity: KoreanCity = .seoul
     @State private var draftUserName: String = ""
     @State private var draftUserIntro: String = ""
+    // [v0.2 M1] core 프로필 구조화 draft(commit 에서만 store 반영).
+    @State private var draftUserJob: String = ""
+    @State private var draftUserInterests: String = ""
+    @State private var draftUserTonePreference: String = ""
+    @State private var draftUserTaboos: String = ""
     @State private var draftTavilyKey: String = ""
     @State private var loaded = false
 
@@ -57,6 +62,7 @@ struct SettingsView: View {
             responseSection
             briefingSection
             profileSection
+            memorySection
             webSearchSection
             helpSection
         }
@@ -90,6 +96,11 @@ struct SettingsView: View {
             draftCity = settings.selectedCity
             draftUserName = settings.userName
             draftUserIntro = settings.userIntro
+            // [v0.2 M1] core 프로필 구조화 draft 초기화.
+            draftUserJob = settings.userJob
+            draftUserInterests = settings.userInterests
+            draftUserTonePreference = settings.userTonePreference
+            draftUserTaboos = settings.userTaboos
             draftTavilyKey = settings.tavilyAPIKey
             loaded = true
         }
@@ -109,6 +120,11 @@ struct SettingsView: View {
         settings.cityID = draftCity.rawValue
         settings.userName = draftUserName.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.userIntro = draftUserIntro.trimmingCharacters(in: .whitespacesAndNewlines)
+        // [v0.2 M1] core 프로필 구조화 커밋(trim — 빈 값은 주입에서 자동 생략).
+        settings.userJob = draftUserJob.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.userInterests = draftUserInterests.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.userTonePreference = draftUserTonePreference.trimmingCharacters(in: .whitespacesAndNewlines)
+        settings.userTaboos = draftUserTaboos.trimmingCharacters(in: .whitespacesAndNewlines)
         // tavilyAPIKey setter 가 Keychain 에 저장(빈 값이면 삭제 → 웹검색 비활성).
         settings.tavilyAPIKey = draftTavilyKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -283,13 +299,40 @@ struct SettingsView: View {
             TextField("이름 (선택)", text: $draftUserName)
                 .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled()
+            TextField("하는 일 (선택)", text: $draftUserJob)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+            TextField("관심사 (선택)", text: $draftUserInterests, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...3)
+            TextField("말투·응답 선호 (선택)", text: $draftUserTonePreference, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...3)
+            TextField("금기·주의사항 (선택)", text: $draftUserTaboos, axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...3)
             TextField("한 줄 소개 (선택)", text: $draftUserIntro, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...3)
         } header: {
             Text("프로필")
         } footer: {
-            Text("입력하면 비서가 답변에 참고합니다. 비워 두면 사용하지 않아요.")
+            Text("프로필은 모든 대화·브리핑에 반영됩니다. 비워 둔 항목은 사용하지 않아요.")
+        }
+    }
+
+    // MARK: - [v0.2 M3] 기억 관리 섹션(프로필 아래 — MemoryView 진입)
+
+    private var memorySection: some View {
+        Section {
+            NavigationLink {
+                // 재임베딩용 임베딩 클라이언트(채팅 host 재사용 + :8081). 미설정/실패면 nil → 재임베딩 없이 동작.
+                MemoryView(embedding: settings.baseURL.flatMap { EmbeddingClient(chatBaseURL: $0) })
+            } label: {
+                Label("기억 관리", systemImage: "brain.head.profile")
+            }
+        } footer: {
+            Text("대화에서 자동으로 모은 기억을 확인·수정·삭제할 수 있어요. 자동 추출된 기억은 '검토 필요'로 표시됩니다.")
         }
     }
 

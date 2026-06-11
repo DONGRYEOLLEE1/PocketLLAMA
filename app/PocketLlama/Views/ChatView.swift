@@ -13,6 +13,7 @@ import SwiftUI
 struct ChatView: View {
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase   // [v0.2 M3] 포그라운드 복귀 → 큐 처리
 
     @Bindable var settings: AppSettingsStore
     let baseURL: URL
@@ -37,7 +38,9 @@ struct ChatView: View {
             apiKey: settings.apiKey.isEmpty ? nil : settings.apiKey
         )
         _client = State(initialValue: client)
-        _viewModel = State(initialValue: ChatViewModel(client: client, store: settings))
+        // [v0.2 M3] 임베딩 클라이언트(채팅 host 재사용 + :8081). host 추출 실패 시 nil → LIKE 폴백.
+        let embedding = EmbeddingClient(chatBaseURL: baseURL)
+        _viewModel = State(initialValue: ChatViewModel(client: client, store: settings, embedding: embedding))
 
         // [Phase W3] 브리핑용 독립 클라이언트(세션 격리, §5) + Open-Meteo 날씨.
         let briefingClient = AnthropicChatClient(
@@ -113,9 +116,15 @@ struct ChatView: View {
                 } else {
                     maybeAutoBriefing()
                 }
+                // [v0.2 M3] 앱 시작/화면 진입 시 pending 추출 큐 처리(유휴 멱등, §3 2단).
+                viewModel.processMemoryQueueIfNeeded()
                 #if DEBUG
                 runE2EHooks()
                 #endif
+            }
+            // [v0.2 M3] 포그라운드 복귀 시에도 큐 처리(중단 복구 — §3 멱등).
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { viewModel.processMemoryQueueIfNeeded() }
             }
         }
     }
@@ -485,6 +494,15 @@ extension ChatView {
                 viewModel.input = text
                 viewModel.send()
                 E2EDriver.report("sent=\(text)")
+            }
+        }
+
+        // [v0.2 M3 검증] 복원된 세션을 newChat → pending 큐 적재 + 추출 처리(쓰기 경로 그대로).
+        if E2EDriver.newChatOnLaunch {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)   // 세션 복원 안착 대기
+                viewModel.newChat()
+                E2EDriver.report("newchat-triggered")
             }
         }
     }

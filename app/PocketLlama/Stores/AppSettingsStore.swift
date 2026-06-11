@@ -26,8 +26,16 @@ final class AppSettingsStore {
         static let cityID = "cityID"
         static let userName = "userName"
         static let userIntro = "userIntro"
+        // [v0.2 M1] core 프로필 구조화 필드(이름·소개는 기존 키 유지, 아래 4개 신규 — 비밀 아님).
+        static let userJob = "userJob"
+        static let userInterests = "userInterests"
+        static let userTonePreference = "userTonePreference"
+        static let userTaboos = "userTaboos"
         // [Phase W3] 당일 브리핑 캐시(yyyy-MM-dd + 텍스트 + 날씨 요약).
         static let briefingCache = "briefing.cache"
+        // [v0.2 M2] 직전 세션 요약(텍스트 + yyyy-MM-dd). M3 의 SQLite 이관 전 임시 저장처.
+        static let lastSessionSummary = "memory.lastSessionSummary"
+        static let lastSessionSummaryDate = "memory.lastSessionSummaryDate"
     }
 
     /// 사용자가 입력한 base URL 문자열(정규화 전 원문 보관 — 편집 편의).
@@ -84,6 +92,25 @@ final class AppSettingsStore {
         didSet { defaults.set(userIntro, forKey: Key.userIntro) }
     }
 
+    // MARK: - [v0.2 M1] core 프로필 구조화 필드(전부 비밀 아님 → UserDefaults didSet, 빈 값은 주입 생략)
+
+    /// 하는 일(직업·역할 — 비면 생략).
+    var userJob: String {
+        didSet { defaults.set(userJob, forKey: Key.userJob) }
+    }
+    /// 관심사(쉼표/자유 텍스트 — 비면 생략).
+    var userInterests: String {
+        didSet { defaults.set(userInterests, forKey: Key.userInterests) }
+    }
+    /// 말투·응답 선호(예: "존댓말, 짧게" — 비면 생략).
+    var userTonePreference: String {
+        didSet { defaults.set(userTonePreference, forKey: Key.userTonePreference) }
+    }
+    /// 금기·주의사항(예: "정치 얘기 피하기" — 비면 생략).
+    var userTaboos: String {
+        didSet { defaults.set(userTaboos, forKey: Key.userTaboos) }
+    }
+
     init() {
         baseURLString = defaults.string(forKey: Key.baseURL) ?? ""
 
@@ -119,6 +146,37 @@ final class AppSettingsStore {
         cityID = defaults.string(forKey: Key.cityID) ?? KoreanCity.seoul.rawValue
         userName = defaults.string(forKey: Key.userName) ?? ""
         userIntro = defaults.string(forKey: Key.userIntro) ?? ""
+        // [v0.2 M1] core 프로필 구조화 필드 로드(미설정 시 빈 문자열).
+        userJob = defaults.string(forKey: Key.userJob) ?? ""
+        userInterests = defaults.string(forKey: Key.userInterests) ?? ""
+        userTonePreference = defaults.string(forKey: Key.userTonePreference) ?? ""
+        userTaboos = defaults.string(forKey: Key.userTaboos) ?? ""
+    }
+
+    // MARK: - [v0.2 M1] core 프로필 블록(system 주입 일원화 — 비어 있지 않은 필드만)
+
+    /// 비어 있지 않은 프로필 필드만으로 `[사용자 프로필]` 블록을 만든다(전부 비면 nil).
+    /// ChatViewModel·BriefingViewModel 이 이 한 곳을 공유해 주입 형식을 일치시킨다(M-D10 불변 코어 쪽 배치).
+    /// 기존 userIntro(한 줄 소개)는 구조화 이전 자유 텍스트라 "소개" 라인으로 함께 노출한다.
+    func coreProfileBlock() -> String? {
+        func trimmed(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let name = trimmed(userName)
+        let intro = trimmed(userIntro)
+        let job = trimmed(userJob)
+        let interests = trimmed(userInterests)
+        let tone = trimmed(userTonePreference)
+        let taboos = trimmed(userTaboos)
+
+        var lines: [String] = []
+        if !name.isEmpty { lines.append("이름: \(name)") }
+        if !job.isEmpty { lines.append("하는 일: \(job)") }
+        if !interests.isEmpty { lines.append("관심사: \(interests)") }
+        if !intro.isEmpty { lines.append("소개: \(intro)") }
+        if !tone.isEmpty { lines.append("응답 선호: \(tone)") }
+        if !taboos.isEmpty { lines.append("주의: \(taboos)") }
+
+        guard !lines.isEmpty else { return nil }
+        return "[사용자 프로필]\n" + lines.joined(separator: "\n")
     }
 
     // MARK: - [Phase W2] 도시 매핑 헬퍼
@@ -167,6 +225,33 @@ final class AppSettingsStore {
         guard let data = defaults.data(forKey: Key.briefingCache),
               let cache = try? JSONDecoder().decode(BriefingCache.self, from: data) else { return nil }
         return cache
+    }
+
+    // MARK: - [v0.2 M2] 직전 세션 요약(③ 계층 — 임시 저장처)
+    //
+    // M3 에서 SQLite(MemoryStore)로 이관 예정인 임시 저장처다. 지금은 "직전 1건"만 UserDefaults 에
+    // 둔다(text + yyyy-MM-dd). newChat 시 비동기로 갱신되고, 브리핑이 "지난 이야기" 언급에 재사용한다.
+
+    func saveLastSessionSummary(_ text: String) {
+        defaults.set(text, forKey: Key.lastSessionSummary)
+        defaults.set(Self.todayKey(), forKey: Key.lastSessionSummaryDate)
+    }
+
+    /// 직전 세션 요약(text + date). 없으면 nil.
+    func loadLastSessionSummary() -> (text: String, date: String)? {
+        guard let text = defaults.string(forKey: Key.lastSessionSummary),
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let date = defaults.string(forKey: Key.lastSessionSummaryDate) ?? ""
+        return (text, date)
+    }
+
+    /// 오늘 날짜 키(yyyy-MM-dd, Asia/Seoul) — 세션 요약 저장일 기록용(BriefingViewModel 과 동일 규칙).
+    private static func todayKey() -> String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyy-MM-dd"
+        df.timeZone = TimeZone(identifier: "Asia/Seoul")
+        return df.string(from: Date())
     }
 }
 
